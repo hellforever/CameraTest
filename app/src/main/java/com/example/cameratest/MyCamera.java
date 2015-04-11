@@ -1,6 +1,7 @@
 package com.example.cameratest;
 
 import android.app.Activity;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Environment;
@@ -20,7 +21,6 @@ import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import com.github.mikephil.charting.charts.LineChart;
-import com.github.mikephil.charting.components.LimitLine;
 import com.github.mikephil.charting.components.XAxis;
 import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.Entry;
@@ -29,7 +29,6 @@ import com.github.mikephil.charting.data.LineDataSet;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class MyCamera extends Activity {
@@ -56,7 +55,35 @@ public class MyCamera extends Activity {
 
         SurfaceView camView = new SurfaceView(this);
         final SurfaceHolder camHolder = camView.getHolder();
-        camPreview = new CameraPreview(640, 480);
+        mHandler = new Handler(Looper.getMainLooper()) {
+            @Override
+            public void handleMessage(Message msg) {
+                super.handleMessage(msg);
+                switch (msg.what) {
+                    case 1:
+                        if (camPreview.mBitMapGray == null) {
+                            Toast.makeText(MyCamera.this, "BitMap null", Toast.LENGTH_SHORT).show();
+                        } else {
+                            mainLayout.removeAllViews();
+                            ImageView v = new ImageView(MyCamera.this);
+                            v.setImageBitmap(camPreview.mBitMap);
+                            mainLayout.addView(v);
+                            List<Float> list = MyCamera.this.imageProcess(camPreview.mBitMapGray);
+                            MyCamera.this.setParameters(list);
+
+                            ArrayList<String> xMarks = new ArrayList<>();
+                            for (int i = 0; i < list.size(); i++) {
+                                xMarks.add(String.valueOf(i));
+                            }
+
+                            MyCamera.this.setxVals(xMarks);
+                            MyCamera.this.drawPlot();
+                        }
+
+                }
+            }
+        };
+        camPreview = new CameraPreview(this, mHandler, 640, 480);
 
         camHolder.addCallback(camPreview);
         //  camHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
@@ -65,22 +92,7 @@ public class MyCamera extends Activity {
         mainLayout.addView(camView, new LayoutParams(640, 480));
         chart = (LineChart) findViewById(R.id.chart);
         initChart();
-        mHandler = new Handler(Looper.getMainLooper()) {
-            @Override
-            public void handleMessage(Message msg) {
-                super.handleMessage(msg);
-                switch (msg.what) {
-                    case 1:
-                        mainLayout.removeAllViews();
-                        ImageView v = new ImageView(MyCamera.this);
-                        if(camPreview.mBitMap == null){
-                            Toast.makeText(MyCamera.this,"fdsafdsafa",Toast.LENGTH_SHORT).show();
-                        }
-                        v.setImageBitmap(camPreview.mBitMap);
-                        mainLayout.addView(v);
-                }
-            }
-        };
+
 
     }
 
@@ -106,8 +118,8 @@ public class MyCamera extends Activity {
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         if (event.getAction() == MotionEvent.ACTION_DOWN) {
-            int X = (int) event.getX();
-            if (X >= 640)
+            int Y = (int) event.getY();
+            if (Y <= getWindowManager().getDefaultDisplay().getHeight())
                 mHandler.postDelayed(TakePicture, 300);
             else
                 camPreview.CameraStartAutoFocus();
@@ -125,12 +137,8 @@ public class MyCamera extends Activity {
             File file = new File(MyDirectory_path);
             if (!file.exists())
                 file.mkdirs();
-            Toast.makeText(MyCamera.this, MyDirectory_path, Toast.LENGTH_SHORT).show();
             PictureFileName = MyDirectory_path + "/MyPicture.jpg";
             camPreview.CameraTakePicture(PictureFileName);
-            Message message = new Message();
-            message.what = 1;
-            mHandler.sendMessage(message);
         }
     };
 
@@ -140,35 +148,31 @@ public class MyCamera extends Activity {
 
         LineChart chart = (LineChart) findViewById(R.id.chart);
         YAxis leftAxis = chart.getAxisLeft();
-        LimitLine ll = new LimitLine(140f, "Critical Blood Pressure");
-        ll.setLineColor(Color.RED);
-        ll.setLineWidth(4f);
-        ll.setTextColor(Color.BLACK);
-        ll.setTextSize(12f);
-        leftAxis.addLimitLine(ll);
+//        LimitLine ll = new LimitLine(140f, "Critical Blood Pressure");
+//        ll.setLineColor(Color.RED);
+//        ll.setLineWidth(4f);
+//        ll.setTextColor(Color.BLACK);
+//        ll.setTextSize(12f);
+//        leftAxis.addLimitLine(ll);
 
         XAxis xAxis = chart.getXAxis();
         xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
         xAxis.setTextSize(10f);
-        xAxis.setTextColor(Color.RED);
+        xAxis.setTextColor(Color.BLACK);
         xAxis.setDrawAxisLine(true);
-        xAxis.setDrawGridLines(false);
-
-        Float[] _float = {2.3f, 4.5f, 3.3f, 5.7f, 1.3f, 8.7f};
-        List<Float> list = new ArrayList<Float>();
-        Collections.addAll(list, _float);
-        setParameters(list);
-
-        ArrayList<String> x = new ArrayList<String>();
-        x.add("1.Q");
-        x.add("2.Q");
-        x.add("3.Q");
-        x.add("4.Q");
-        x.add("5.Q");
-        x.add("6.Q");
-        setxVals(x);
-
-        drawPlot();
+        xAxis.setDrawGridLines(true);
+//
+//        Float[] _float = {2.3f, 4.5f, 3.3f, 5.7f, 1.3f, 8.7f};
+//        List<Float> list = new ArrayList<>();
+//        Collections.addAll(list, _float);
+//        setParameters(list);
+//
+//        ArrayList<String> x = new ArrayList<>();
+//        for(int i = 0; i < 8; i++){
+//            x.add(String.valueOf(i));
+//        }
+//        setxVals(x);
+//        drawPlot();
     }
 
     public void setParameters(List<Float> list) {
@@ -177,7 +181,11 @@ public class MyCamera extends Activity {
         for (int i = 0; i < list.size(); i++) {
             valsComp.add(new Entry(list.get(i), i));
         }
-        LineDataSet setComp = new LineDataSet(valsComp, "中心光谱");
+        LineDataSet setComp = new LineDataSet(valsComp, "Author: LEI Yu");
+        setComp.setDrawFilled(false);
+        setComp.setDrawCircleHole(false);
+        setComp.setDrawCircles(false);
+
         dataSets.add(setComp);
     }
 
@@ -192,5 +200,26 @@ public class MyCamera extends Activity {
         chart.invalidate();
     }
 
-
+    public List<Float> imageProcess(Bitmap bitmap) {
+        int m = bitmap.getWidth();
+        int n = bitmap.getHeight();
+        int y_sum = 0;
+        int t = 1;
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j < n; j++) {
+                if (Color.blue(bitmap.getPixel(i, j)) > 70) {
+                    t++;
+                    y_sum += j;
+                }
+            }
+        }
+        int y_moyen = y_sum / t;
+        System.err.println(y_moyen);
+        List<Float> list = new ArrayList<>();
+        for (int i = 0; i < m; i++) {
+            float temp = Color.blue(bitmap.getPixel(i, y_moyen));
+            list.add(temp);
+        }
+        return list;
+    }
 }

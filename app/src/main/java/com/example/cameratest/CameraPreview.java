@@ -1,5 +1,6 @@
 package com.example.cameratest;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -11,10 +12,10 @@ import android.hardware.Camera.AutoFocusCallback;
 import android.hardware.Camera.Parameters;
 import android.hardware.Camera.PictureCallback;
 import android.hardware.Camera.ShutterCallback;
+import android.os.Handler;
+import android.os.Message;
 import android.view.SurfaceHolder;
 
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 
 public class CameraPreview implements SurfaceHolder.Callback,
@@ -26,12 +27,17 @@ public class CameraPreview implements SurfaceHolder.Callback,
     private boolean TakePicture;
     private String NowPictureFileName;
     private SurfaceHolder mSurfHolder;
+    Bitmap mBitMapGray;
     Bitmap mBitMap;
+    Context mContext;
+    Handler mHandler;
 
 
-    public CameraPreview(int PreviewlayoutWidth, int PreviewlayoutHeight) {
+    public CameraPreview(Context context,Handler handler, int PreviewlayoutWidth, int PreviewlayoutHeight) {
         PreviewSizeWidth = PreviewlayoutWidth;
         PreviewSizeHeight = PreviewlayoutHeight;
+        mContext = context;
+        mHandler = handler;
     }
 
     @Override
@@ -94,7 +100,10 @@ public class CameraPreview implements SurfaceHolder.Callback,
     public void CameraTakePicture(String FileName) {
         TakePicture = true;
         NowPictureFileName = FileName;
-        mCamera.autoFocus(myAutoFocusCallback);
+       // mCamera.autoFocus(myAutoFocusCallback);
+        mCamera.stopPreview();// fixed for Samsung S2
+        mCamera.takePicture(shutterCallback, rawPictureCallback,
+                jpegPictureCallback);
     }
 
     // Set auto-focus interface
@@ -109,7 +118,7 @@ public class CameraPreview implements SurfaceHolder.Callback,
                 NowCamera.stopPreview();// fixed for Samsung S2
                 NowCamera.takePicture(shutterCallback, rawPictureCallback,
                         jpegPictureCallback);
-                TakePicture = false;
+                TakePicture = true;
             }
         }
     };
@@ -125,28 +134,34 @@ public class CameraPreview implements SurfaceHolder.Callback,
         }
     };
 
-    PictureCallback jpegPictureCallback = new PictureCallback() {
-        public void onPictureTaken(byte[] data, Camera arg1) {
-            // Save the picture.
+    CustumPictictureCallback jpegPictureCallback = new CustumPictictureCallback(mHandler);
 
-            Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0,
+    class CustumPictictureCallback implements PictureCallback {
+        Handler handler;
+        CustumPictictureCallback(Handler handler){
+            this.handler = handler;
+        }
+        @Override
+        public void onPictureTaken(byte[] data, Camera camera) {
+            mBitMap = BitmapFactory.decodeByteArray(data, 0,
                     data.length);
-            FileOutputStream out = null;
-            try {
-                out = new FileOutputStream(NowPictureFileName);
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-            }
+//            FileOutputStream out = null;
+//            try {
+//                out = new FileOutputStream(NowPictureFileName);
+//            } catch (FileNotFoundException e) {
+//                e.printStackTrace();
+//            }
 
-            Bitmap bitmap2 = toGrayscale(bitmap);
+            mBitMapGray = toGrayscale(mBitMap);
 
-            bitmap2.compress(Bitmap.CompressFormat.JPEG, 90, out);
-            mBitMap = bitmap2;
+            //bitmap2.compress(Bitmap.CompressFormat.JPEG, 90, out);
 
-
+            Message message = new Message();
+            message.what = 1;
+            mHandler.sendMessage(message);
 
         }
-    };
+    }
 
     public Bitmap toGrayscale(Bitmap bmpOriginal) {
         int width, height;
