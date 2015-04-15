@@ -54,13 +54,13 @@ public class CameraPreview implements SurfaceHolder.Callback,
         parameters.setPictureSize(PreviewSizeWidth, PreviewSizeHeight);
 
         // Turn on the camera flash.
-        String NowFlashMode = parameters.getFlashMode();
-        if (NowFlashMode != null)
-            parameters.setFlashMode(Parameters.FLASH_MODE_ON);
-        // Set the auto-focus.
-        String NowFocusMode = parameters.getFocusMode();
-        if (NowFocusMode != null)
-            parameters.setFocusMode("auto");
+//        String NowFlashMode = parameters.getFlashMode();
+//        if (NowFlashMode != null)
+//            parameters.setFlashMode(Parameters.FLASH_MODE_ON);
+//        // Set the auto-focus.
+//        String NowFocusMode = parameters.getFocusMode();
+//        if (NowFocusMode != null)
+//            parameters.setFocusMode("auto");
 
         mCamera.setParameters(parameters);
 

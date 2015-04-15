@@ -41,6 +41,7 @@ public class MyCamera extends Activity {
     ArrayList<LineDataSet> dataSets;
     ArrayList<String> xVals;
     LineChart chart;
+    boolean isTakenPhoto = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,13 +84,13 @@ public class MyCamera extends Activity {
                 }
             }
         };
-        camPreview = new CameraPreview(this, mHandler, 640, 480);
+        camPreview = new CameraPreview(this, mHandler, 320, 240);
 
         camHolder.addCallback(camPreview);
         //  camHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
 
         mainLayout = (LinearLayout) findViewById(R.id.linearLayout1);
-        mainLayout.addView(camView, new LayoutParams(640, 480));
+        mainLayout.addView(camView, new LayoutParams(320, 240));
         chart = (LineChart) findViewById(R.id.chart);
         initChart();
 
@@ -117,12 +118,15 @@ public class MyCamera extends Activity {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        if (event.getAction() == MotionEvent.ACTION_DOWN) {
-            int Y = (int) event.getY();
-            if (Y <= getWindowManager().getDefaultDisplay().getHeight())
-                mHandler.postDelayed(TakePicture, 300);
-            else
-                camPreview.CameraStartAutoFocus();
+        if(!isTakenPhoto) {
+            if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                int Y = (int) event.getY();
+                if (Y <= getWindowManager().getDefaultDisplay().getHeight())
+                    mHandler.postDelayed(TakePicture, 300);
+                else
+                    camPreview.CameraStartAutoFocus();
+            }
+            isTakenPhoto = true;
         }
         return true;
     }
