@@ -8,6 +8,7 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
@@ -33,13 +34,19 @@ import java.util.List;
 
 public class MyCamera extends Activity {
 
+    //预览组件
     private CameraPreview camPreview;
     private LinearLayout mainLayout;
 
     private Handler mHandler;
 
+    //曲线图需要使用的值
     ArrayList<LineDataSet> dataSets;
+
+    //横坐标标示
     ArrayList<String> xVals;
+
+    //图表
     LineChart chart;
     boolean isTakenPhoto = false;
 
@@ -52,10 +59,14 @@ public class MyCamera extends Activity {
                 WindowManager.LayoutParams.FLAG_FULLSCREEN);
         //Set this APK no title
         requestWindowFeature(Window.FEATURE_NO_TITLE);
+
+        //加载布局
         setContentView(R.layout.activity_main);
 
         SurfaceView camView = new SurfaceView(this);
         final SurfaceHolder camHolder = camView.getHolder();
+
+        //允许接受拍照返回后数据，绘制图表
         mHandler = new Handler(Looper.getMainLooper()) {
             @Override
             public void handleMessage(Message msg) {
@@ -72,11 +83,10 @@ public class MyCamera extends Activity {
                             List<Float> list = MyCamera.this.imageProcess(camPreview.mBitMapGray);
                             MyCamera.this.setParameters(list);
 
-                            ArrayList<String> xMarks = new ArrayList<>();
+                            ArrayList<String> xMarks = new ArrayList<String>();
                             for (int i = 0; i < list.size(); i++) {
                                 xMarks.add(String.valueOf(i));
                             }
-
                             MyCamera.this.setxVals(xMarks);
                             MyCamera.this.drawPlot();
                         }
@@ -84,13 +94,16 @@ public class MyCamera extends Activity {
                 }
             }
         };
-        camPreview = new CameraPreview(this, mHandler, 320, 240);
 
+        //初始化相机预览界面
+        camPreview = new CameraPreview(this, mHandler, 480, 360);
         camHolder.addCallback(camPreview);
         //  camHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
 
         mainLayout = (LinearLayout) findViewById(R.id.linearLayout1);
-        mainLayout.addView(camView, new LayoutParams(320, 240));
+        mainLayout.addView(camView, new LayoutParams(480, 360));
+
+        //初始化图表
         chart = (LineChart) findViewById(R.id.chart);
         initChart();
 
@@ -116,6 +129,7 @@ public class MyCamera extends Activity {
         return super.onOptionsItemSelected(item);
     }
 
+    //接触屏幕后调用预览界面的拍照函数
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         if(!isTakenPhoto) {
@@ -123,8 +137,7 @@ public class MyCamera extends Activity {
                 int Y = (int) event.getY();
                 if (Y <= getWindowManager().getDefaultDisplay().getHeight())
                     mHandler.postDelayed(TakePicture, 300);
-                else
-                    camPreview.CameraStartAutoFocus();
+
             }
             isTakenPhoto = true;
         }
@@ -135,21 +148,24 @@ public class MyCamera extends Activity {
         String extStorageDirectory = Environment.getExternalStorageDirectory().toString();
         String MyDirectory_path = extStorageDirectory;
         String PictureFileName;
-
-
         public void run() {
+//           保存图片的相关设置，这里不需要
             File file = new File(MyDirectory_path);
             if (!file.exists())
                 file.mkdirs();
             PictureFileName = MyDirectory_path + "/MyPicture.jpg";
+
             camPreview.CameraTakePicture(PictureFileName);
         }
     };
 
-    private void initChart() {
-        dataSets = new ArrayList<>();
-        xVals = new ArrayList<>();
 
+    //初始化图表
+    private void initChart() {
+        dataSets = new ArrayList<LineDataSet>();
+        xVals = new ArrayList<String>();
+
+        //设置X轴Y轴样式，详细见Android MPChart开源组件
         LineChart chart = (LineChart) findViewById(R.id.chart);
         YAxis leftAxis = chart.getAxisLeft();
 //        LimitLine ll = new LimitLine(140f, "Critical Blood Pressure");
@@ -165,20 +181,10 @@ public class MyCamera extends Activity {
         xAxis.setTextColor(Color.BLACK);
         xAxis.setDrawAxisLine(true);
         xAxis.setDrawGridLines(true);
-//
-//        Float[] _float = {2.3f, 4.5f, 3.3f, 5.7f, 1.3f, 8.7f};
-//        List<Float> list = new ArrayList<>();
-//        Collections.addAll(list, _float);
-//        setParameters(list);
-//
-//        ArrayList<String> x = new ArrayList<>();
-//        for(int i = 0; i < 8; i++){
-//            x.add(String.valueOf(i));
-//        }
-//        setxVals(x);
-//        drawPlot();
+
     }
 
+    //传入一组Y轴数据，X轴默认从1开始
     public void setParameters(List<Float> list) {
         dataSets.clear();
         ArrayList<Entry> valsComp = new ArrayList<Entry>();
@@ -193,17 +199,20 @@ public class MyCamera extends Activity {
         dataSets.add(setComp);
     }
 
+    //设置X轴显示的数据，与上面Y的数据对应
     public void setxVals(ArrayList<String> list) {
         xVals.clear();
         xVals = list;
     }
 
+    //设置好参数后绘制图表
     public void drawPlot() {
         LineData data = new LineData(xVals, dataSets);
         chart.setData(data);
         chart.invalidate();
     }
 
+    //图像处理算法，提取图片对应轴线的亮度值 0-255
     public List<Float> imageProcess(Bitmap bitmap) {
         int m = bitmap.getWidth();
         int n = bitmap.getHeight();
@@ -211,6 +220,7 @@ public class MyCamera extends Activity {
         int t = 1;
         for (int i = 0; i < m; i++) {
             for (int j = 0; j < n; j++) {
+                //阙值为70效果还行
                 if (Color.blue(bitmap.getPixel(i, j)) > 70) {
                     t++;
                     y_sum += j;
@@ -218,8 +228,8 @@ public class MyCamera extends Activity {
             }
         }
         int y_moyen = y_sum / t;
-        System.err.println(y_moyen);
-        List<Float> list = new ArrayList<>();
+        Log.d("Y_MOYEN",String.valueOf(y_moyen));
+        List<Float> list = new ArrayList<Float>();
         for (int i = 0; i < m; i++) {
             float temp = Color.blue(bitmap.getPixel(i, y_moyen));
             list.add(temp);

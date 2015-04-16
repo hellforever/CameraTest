@@ -33,16 +33,17 @@ public class CameraPreview implements SurfaceHolder.Callback,
     Handler mHandler;
 
 
-    public CameraPreview(Context context,Handler handler, int PreviewlayoutWidth, int PreviewlayoutHeight) {
-        PreviewSizeWidth = PreviewlayoutWidth;
-        PreviewSizeHeight = PreviewlayoutHeight;
+    //初始化相机预览界面，传入时间像素尺寸
+    public CameraPreview(Context context,Handler handler, int PreviewWidth, int PreviewHeight) {
+        PreviewSizeWidth = PreviewWidth;
+        PreviewSizeHeight = PreviewHeight;
         mContext = context;
         mHandler = handler;
     }
 
     @Override
     public void surfaceChanged(SurfaceHolder arg0, int arg1, int arg2, int arg3) {
-        // TODO Auto-generated method stub
+        // 每次相机预览界面变动，都会调用，包括初始化时，极易出错
         Parameters parameters;
         mSurfHolder = arg0;
 
@@ -54,13 +55,13 @@ public class CameraPreview implements SurfaceHolder.Callback,
         parameters.setPictureSize(PreviewSizeWidth, PreviewSizeHeight);
 
         // Turn on the camera flash.
-//        String NowFlashMode = parameters.getFlashMode();
-//        if (NowFlashMode != null)
-//            parameters.setFlashMode(Parameters.FLASH_MODE_ON);
-//        // Set the auto-focus.
-//        String NowFocusMode = parameters.getFocusMode();
-//        if (NowFocusMode != null)
-//            parameters.setFocusMode("auto");
+        String NowFlashMode = parameters.getFlashMode();
+        if (NowFlashMode != null)
+            parameters.setFlashMode(Parameters.FLASH_MODE_ON);
+        // Set the auto-focus.
+        String NowFocusMode = parameters.getFocusMode();
+        if (NowFocusMode != null)
+            parameters.setFocusMode("auto");
 
         mCamera.setParameters(parameters);
 
@@ -69,12 +70,14 @@ public class CameraPreview implements SurfaceHolder.Callback,
 
     @Override
     public void surfaceCreated(SurfaceHolder arg0) {
-        // TODO Auto-generated method stub
-        mCamera = Camera.open(0);
+        // 初始化时设置相机参数，易出错
+        mSurfHolder = arg0;
         try {
+            mCamera = Camera.open(0);
             // If did not set the SurfaceHolder, the preview area will be black.
             mCamera.setPreviewDisplay(arg0);
             mCamera.setPreviewCallback(this);
+
         } catch (IOException e) {
             mCamera.release();
             mCamera = null;
@@ -106,11 +109,6 @@ public class CameraPreview implements SurfaceHolder.Callback,
                 jpegPictureCallback);
     }
 
-    // Set auto-focus interface
-    public void CameraStartAutoFocus() {
-        TakePicture = true;
-        mCamera.autoFocus(myAutoFocusCallback);
-    }
 
     AutoFocusCallback myAutoFocusCallback = new AutoFocusCallback() {
         public void onAutoFocus(boolean arg0, Camera NowCamera) {
@@ -134,27 +132,26 @@ public class CameraPreview implements SurfaceHolder.Callback,
         }
     };
 
-    CustumPictictureCallback jpegPictureCallback = new CustumPictictureCallback(mHandler);
+    CustomPictureCallback jpegPictureCallback = new CustomPictureCallback(mHandler);
 
-    class CustumPictictureCallback implements PictureCallback {
+    class CustomPictureCallback implements PictureCallback {
         Handler handler;
-        CustumPictictureCallback(Handler handler){
+        CustomPictureCallback(Handler handler){
             this.handler = handler;
         }
         @Override
         public void onPictureTaken(byte[] data, Camera camera) {
             mBitMap = BitmapFactory.decodeByteArray(data, 0,
                     data.length);
+            //允许储存照片
 //            FileOutputStream out = null;
 //            try {
 //                out = new FileOutputStream(NowPictureFileName);
 //            } catch (FileNotFoundException e) {
 //                e.printStackTrace();
 //            }
-
-            mBitMapGray = toGrayscale(mBitMap);
-
-            //bitmap2.compress(Bitmap.CompressFormat.JPEG, 90, out);
+//            bitmap2.compress(Bitmap.CompressFormat.JPEG, 90, out);
+            mBitMapGray = toGrayScale(mBitMap);
 
             Message message = new Message();
             message.what = 1;
@@ -163,20 +160,21 @@ public class CameraPreview implements SurfaceHolder.Callback,
         }
     }
 
-    public Bitmap toGrayscale(Bitmap bmpOriginal) {
+    //将彩色图转化为灰度图
+    public Bitmap toGrayScale(Bitmap bmpOriginal) {
         int width, height;
         height = bmpOriginal.getHeight();
         width = bmpOriginal.getWidth();
 
-        Bitmap bmpGrayscale = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        Canvas c = new Canvas(bmpGrayscale);
+        Bitmap bmpGrayScale = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(bmpGrayScale);
         Paint paint = new Paint();
         ColorMatrix cm = new ColorMatrix();
         cm.setSaturation(0);
         ColorMatrixColorFilter f = new ColorMatrixColorFilter(cm);
         paint.setColorFilter(f);
         c.drawBitmap(bmpOriginal, 0, 0, paint);
-        return bmpGrayscale;
+        return bmpGrayScale;
     }
 
 }
