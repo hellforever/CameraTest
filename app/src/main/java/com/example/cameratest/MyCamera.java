@@ -1,8 +1,11 @@
 package com.example.cameratest;
 
 import android.app.Activity;
+import android.content.Context;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.hardware.Camera;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -12,8 +15,6 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
-import android.view.SurfaceHolder;
-import android.view.SurfaceView;
 import android.view.ViewGroup.LayoutParams;
 import android.view.Window;
 import android.view.WindowManager;
@@ -63,9 +64,6 @@ public class MyCamera extends Activity {
         //加载布局
         setContentView(R.layout.activity_main);
 
-        SurfaceView camView = new SurfaceView(this);
-        final SurfaceHolder camHolder = camView.getHolder();
-
         //允许接受拍照返回后数据，绘制图表
         mHandler = new Handler(Looper.getMainLooper()) {
             @Override
@@ -73,8 +71,10 @@ public class MyCamera extends Activity {
                 super.handleMessage(msg);
                 switch (msg.what) {
                     case 1:
+                        isTakenPhoto = true;
                         if (camPreview.mBitMapGray == null) {
                             Toast.makeText(MyCamera.this, "BitMap null", Toast.LENGTH_SHORT).show();
+                            camPreview = null;
                         } else {
                             mainLayout.removeAllViews();
                             ImageView v = new ImageView(MyCamera.this);
@@ -82,26 +82,33 @@ public class MyCamera extends Activity {
                             mainLayout.addView(v);
                             List<Float> list = MyCamera.this.imageProcess(camPreview.mBitMapGray);
                             MyCamera.this.setParameters(list);
-
                             ArrayList<String> xMarks = new ArrayList<String>();
                             for (int i = 0; i < list.size(); i++) {
                                 xMarks.add(String.valueOf(i));
                             }
                             MyCamera.this.setxVals(xMarks);
                             MyCamera.this.drawPlot();
+                            camPreview = null;
                         }
+                        break;
+                    default:
+                        camPreview = null;
 
                 }
             }
         };
 
+        int height = getResources().getDimensionPixelSize(R.dimen.chart_height);
+        int width = getResources().getDimensionPixelSize(R.dimen.chart_width);
         //初始化相机预览界面
-        camPreview = new CameraPreview(this, mHandler, 480, 360);
-        camHolder.addCallback(camPreview);
-        //  camHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
 
-        mainLayout = (LinearLayout) findViewById(R.id.linearLayout1);
-        mainLayout.addView(camView, new LayoutParams(480, 360));
+        if (checkCameraHardware(this)) {
+            camPreview = new CameraPreview(this, mHandler, width, height, getCameraInstance());
+            //  camHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
+
+            mainLayout = (LinearLayout) findViewById(R.id.linearLayout1);
+            mainLayout.addView(camPreview, new LayoutParams(width, height));
+        }
 
         //初始化图表
         chart = (LineChart) findViewById(R.id.chart);
@@ -129,17 +136,23 @@ public class MyCamera extends Activity {
         return super.onOptionsItemSelected(item);
     }
 
+    @Override
+    protected void onStop() {
+        super.onStop();
+        this.camPreview = null;
+    }
+
     //接触屏幕后调用预览界面的拍照函数
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        if(!isTakenPhoto) {
+        if (!isTakenPhoto) {
             if (event.getAction() == MotionEvent.ACTION_DOWN) {
                 int Y = (int) event.getY();
                 if (Y <= getWindowManager().getDefaultDisplay().getHeight())
                     mHandler.postDelayed(TakePicture, 300);
 
             }
-            isTakenPhoto = true;
+
         }
         return true;
     }
@@ -148,6 +161,7 @@ public class MyCamera extends Activity {
         String extStorageDirectory = Environment.getExternalStorageDirectory().toString();
         String MyDirectory_path = extStorageDirectory;
         String PictureFileName;
+
         public void run() {
 //           保存图片的相关设置，这里不需要
             File file = new File(MyDirectory_path);
@@ -228,7 +242,7 @@ public class MyCamera extends Activity {
             }
         }
         int y_moyen = y_sum / t;
-        Log.d("Y_MOYEN",String.valueOf(y_moyen));
+        Log.d("Y_MOYEN", String.valueOf(y_moyen));
         List<Float> list = new ArrayList<Float>();
         for (int i = 0; i < m; i++) {
             float temp = Color.blue(bitmap.getPixel(i, y_moyen));
@@ -236,4 +250,28 @@ public class MyCamera extends Activity {
         }
         return list;
     }
+
+    //检查相机
+    private boolean checkCameraHardware(Context context) {
+        if (context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA)) {
+            // this device has a camera
+            return true;
+        } else {
+            // no camera on this device
+            return false;
+        }
+    }
+
+    public static Camera getCameraInstance() {
+        Camera c = null;
+        try {
+            c = Camera.open(); // attempt to get a Camera instance
+        } catch (Exception e) {
+            // Camera is not available (in use or does not exist)
+            Log.d("Debug", "camera open 0 error" + e.getMessage());
+        }
+        return c; // returns null if camera is unavailable
+    }
+
+
 }

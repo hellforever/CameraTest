@@ -14,73 +14,92 @@ import android.hardware.Camera.PictureCallback;
 import android.hardware.Camera.ShutterCallback;
 import android.os.Handler;
 import android.os.Message;
+import android.util.Log;
 import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 
 import java.io.IOException;
 
-public class CameraPreview implements SurfaceHolder.Callback,
+public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback,
         Camera.PreviewCallback {
 
     private int PreviewSizeWidth;
     private int PreviewSizeHeight;
     private Camera mCamera;
     private boolean TakePicture;
-    private String NowPictureFileName;
-    private SurfaceHolder mSurfHolder;
+    // private String NowPictureFileName;
     Bitmap mBitMapGray;
     Bitmap mBitMap;
     Context mContext;
     Handler mHandler;
+    SurfaceHolder mHolder;
 
 
     //初始化相机预览界面，传入时间像素尺寸
-    public CameraPreview(Context context,Handler handler, int PreviewWidth, int PreviewHeight) {
+    public CameraPreview(Context context, Handler handler, int PreviewWidth, int PreviewHeight, Camera camera) {
+        super(context);
         PreviewSizeWidth = PreviewWidth;
         PreviewSizeHeight = PreviewHeight;
         mContext = context;
         mHandler = handler;
+        mHolder = getHolder();
+        mHolder.addCallback(this);
+        mCamera = camera;
+
     }
 
     @Override
     public void surfaceChanged(SurfaceHolder arg0, int arg1, int arg2, int arg3) {
         // 每次相机预览界面变动，都会调用，包括初始化时，极易出错
-        Parameters parameters;
-        mSurfHolder = arg0;
 
-        parameters = mCamera.getParameters();
-        // Set the camera preview size
-        parameters.setPreviewSize(PreviewSizeWidth, PreviewSizeHeight);
-        // Set the take picture size, you can set the large size of the camera
-        // supported.
-        parameters.setPictureSize(PreviewSizeWidth, PreviewSizeHeight);
+        if (mHolder.getSurface() == null) {
+            // preview surface does not exist
+            return;
+        }
 
-        // Turn on the camera flash.
-        String NowFlashMode = parameters.getFlashMode();
-        if (NowFlashMode != null)
-            parameters.setFlashMode(Parameters.FLASH_MODE_ON);
-        // Set the auto-focus.
-        String NowFocusMode = parameters.getFocusMode();
-        if (NowFocusMode != null)
-            parameters.setFocusMode("auto");
+        try {
+            //  mCamera.stopPreview();
+        } catch (Exception e) {
+            // ignore: tried to stop a non-existent preview
+        }
 
-        mCamera.setParameters(parameters);
+        try {
+            Parameters parameters;
+            parameters = mCamera.getParameters();
+            // Set the camera preview size
+            parameters.setPreviewSize(PreviewSizeWidth, PreviewSizeHeight);
+            // Set the take picture size, you can set the large size of the camera
+            // supported.
+            parameters.setPictureSize(PreviewSizeWidth, PreviewSizeHeight);
+            // Turn on the camera flash.
+            String NowFlashMode = parameters.getFlashMode();
+            if (NowFlashMode != null)
+                parameters.setFlashMode(Parameters.FLASH_MODE_ON);
+            // Set the auto-focus.
+            String NowFocusMode = parameters.getFocusMode();
+            if (NowFocusMode != null)
+                parameters.setFocusMode("auto");
+            mCamera.setParameters(parameters);
+        } catch (Exception e) {
+            Log.d("Surface change1", "Surface change1" + e.getMessage());
+        }
 
-        mCamera.startPreview();
+        try {
+            mCamera.setPreviewDisplay(mHolder);
+            mCamera.startPreview();
+        } catch (Exception e) {
+            Log.d("Surface change2", "Surface change2" + e.getMessage());
+        }
     }
 
     @Override
-    public void surfaceCreated(SurfaceHolder arg0) {
-        // 初始化时设置相机参数，易出错
-        mSurfHolder = arg0;
+    public void surfaceCreated(SurfaceHolder holder) {
         try {
-            mCamera = Camera.open(0);
-            // If did not set the SurfaceHolder, the preview area will be black.
-            mCamera.setPreviewDisplay(arg0);
-            mCamera.setPreviewCallback(this);
-
+            mCamera.setPreviewDisplay(holder);
+           // mCamera.setPreviewCallback(this);
+            mCamera.startPreview();
         } catch (IOException e) {
-            mCamera.release();
-            mCamera = null;
+            Log.d("Surface Created Error", "Surface Created Error" + e.getMessage());
         }
     }
 
@@ -102,8 +121,8 @@ public class CameraPreview implements SurfaceHolder.Callback,
     // Take picture interface
     public void CameraTakePicture(String FileName) {
         TakePicture = true;
-        NowPictureFileName = FileName;
-       // mCamera.autoFocus(myAutoFocusCallback);
+        //NowPictureFileName = FileName;
+        // mCamera.autoFocus(myAutoFocusCallback);
         mCamera.stopPreview();// fixed for Samsung S2
         mCamera.takePicture(shutterCallback, rawPictureCallback,
                 jpegPictureCallback);
@@ -120,6 +139,7 @@ public class CameraPreview implements SurfaceHolder.Callback,
             }
         }
     };
+
     ShutterCallback shutterCallback = new ShutterCallback() {
         public void onShutter() {
             // Just do nothing.
@@ -136,9 +156,11 @@ public class CameraPreview implements SurfaceHolder.Callback,
 
     class CustomPictureCallback implements PictureCallback {
         Handler handler;
-        CustomPictureCallback(Handler handler){
+
+        CustomPictureCallback(Handler handler) {
             this.handler = handler;
         }
+
         @Override
         public void onPictureTaken(byte[] data, Camera camera) {
             mBitMap = BitmapFactory.decodeByteArray(data, 0,
@@ -156,7 +178,6 @@ public class CameraPreview implements SurfaceHolder.Callback,
             Message message = new Message();
             message.what = 1;
             mHandler.sendMessage(message);
-
         }
     }
 
@@ -176,5 +197,6 @@ public class CameraPreview implements SurfaceHolder.Callback,
         c.drawBitmap(bmpOriginal, 0, 0, paint);
         return bmpGrayScale;
     }
+
 
 }
