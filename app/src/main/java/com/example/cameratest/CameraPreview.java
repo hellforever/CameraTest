@@ -8,8 +8,6 @@ import android.graphics.ColorMatrix;
 import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Paint;
 import android.hardware.Camera;
-import android.hardware.Camera.AutoFocusCallback;
-import android.hardware.Camera.Parameters;
 import android.hardware.Camera.PictureCallback;
 import android.hardware.Camera.ShutterCallback;
 import android.os.Handler;
@@ -18,16 +16,20 @@ import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.List;
 
 public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback,
         Camera.PreviewCallback {
 
     private int PreviewSizeWidth;
     private int PreviewSizeHeight;
-    private Camera mCamera;
-    private boolean TakePicture;
-    // private String NowPictureFileName;
+    Camera mCamera;
+    boolean TakePicture = false;
+    boolean isCameraOpen;
+    private String NowPictureFileName;
     Bitmap mBitMapGray;
     Bitmap mBitMap;
     Context mContext;
@@ -36,16 +38,21 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
 
 
     //初始化相机预览界面，传入时间像素尺寸
-    public CameraPreview(Context context, Handler handler, int PreviewWidth, int PreviewHeight, Camera camera) {
+    public CameraPreview(Context context, Handler handler, int PreviewWidth, int PreviewHeight, Camera camera) throws NullPointerException {
         super(context);
+        if (camera == null) {
+            throw new NullPointerException("Camera null");
+        } else {
+            isCameraOpen = true;
+        }
         PreviewSizeWidth = PreviewWidth;
         PreviewSizeHeight = PreviewHeight;
         mContext = context;
         mHandler = handler;
         mHolder = getHolder();
         mHolder.addCallback(this);
+        mHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
         mCamera = camera;
-
     }
 
     @Override
@@ -58,28 +65,30 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
         }
 
         try {
-            //  mCamera.stopPreview();
+            mCamera.stopPreview();
         } catch (Exception e) {
             // ignore: tried to stop a non-existent preview
         }
 
         try {
-            Parameters parameters;
+            Camera.Parameters parameters;
             parameters = mCamera.getParameters();
+
+            List<Camera.Size> sizes = parameters.getSupportedPreviewSizes();
+            Camera.Size optimalSize = getOptimalPreviewSize(sizes, PreviewSizeWidth, PreviewSizeHeight);
+
             // Set the camera preview size
-            parameters.setPreviewSize(PreviewSizeWidth, PreviewSizeHeight);
+            parameters.setPreviewSize(optimalSize.width, optimalSize.height);
             // Set the take picture size, you can set the large size of the camera
             // supported.
-            parameters.setPictureSize(PreviewSizeWidth, PreviewSizeHeight);
-            // Turn on the camera flash.
-            String NowFlashMode = parameters.getFlashMode();
-            if (NowFlashMode != null)
-                parameters.setFlashMode(Parameters.FLASH_MODE_ON);
+            parameters.setPictureSize(optimalSize.width, optimalSize.height);
+
             // Set the auto-focus.
             String NowFocusMode = parameters.getFocusMode();
             if (NowFocusMode != null)
                 parameters.setFocusMode("auto");
             mCamera.setParameters(parameters);
+
         } catch (Exception e) {
             Log.d("Surface change1", "Surface change1" + e.getMessage());
         }
@@ -87,6 +96,7 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
         try {
             mCamera.setPreviewDisplay(mHolder);
             mCamera.startPreview();
+            TakePicture = true;
         } catch (Exception e) {
             Log.d("Surface change2", "Surface change2" + e.getMessage());
         }
@@ -94,9 +104,13 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
+
         try {
+            if (!isCameraOpen)
+                return;
             mCamera.setPreviewDisplay(holder);
-           // mCamera.setPreviewCallback(this);
+            // mCamera.setPreviewCallback(this);
+            mHolder = holder;
             mCamera.startPreview();
         } catch (IOException e) {
             Log.d("Surface Created Error", "Surface Created Error" + e.getMessage());
@@ -106,10 +120,12 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
     @Override
     public void surfaceDestroyed(SurfaceHolder arg0) {
         // TODO Auto-generated method stub
-        mCamera.setPreviewCallback(null);
-        mCamera.stopPreview();
-        mCamera.release();
-        mCamera = null;
+//        mCamera.setPreviewCallback(null);
+//        mCamera.stopPreview();
+        //mCamera.release();
+//        if(mCamera != null){
+//            mCamera.release();
+//        }
     }
 
     @Override
@@ -120,25 +136,35 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
 
     // Take picture interface
     public void CameraTakePicture(String FileName) {
-        TakePicture = true;
-        //NowPictureFileName = FileName;
+
+        NowPictureFileName = FileName;
         // mCamera.autoFocus(myAutoFocusCallback);
-        mCamera.stopPreview();// fixed for Samsung S2
-        mCamera.takePicture(shutterCallback, rawPictureCallback,
-                jpegPictureCallback);
+
+        if (TakePicture) {
+            Log.d("huuh", "ccccccccccccccccccccccccccccccc");
+            System.err.print("nhiuhiuhniuhiuhiuhiuhiuhuiuhiuopkokoijiji");
+            TakePicture = false;
+            //  mCamera.stopPreview();
+            Log.d("huuh", "uuuuuuuuuuuuuuuuu");
+
+            mCamera.takePicture(shutterCallback, rawPictureCallback,
+                    jpegPictureCallback);
+            Log.d("huuh", "yyyyyyyyyy");
+
+        }
     }
 
 
-    AutoFocusCallback myAutoFocusCallback = new AutoFocusCallback() {
-        public void onAutoFocus(boolean arg0, Camera NowCamera) {
-            if (TakePicture) {
-                NowCamera.stopPreview();// fixed for Samsung S2
-                NowCamera.takePicture(shutterCallback, rawPictureCallback,
-                        jpegPictureCallback);
-                TakePicture = true;
-            }
-        }
-    };
+//    AutoFocusCallback myAutoFocusCallback = new AutoFocusCallback() {
+//        public void onAutoFocus(boolean arg0, Camera NowCamera) {
+//            if (TakePicture) {
+//                NowCamera.stopPreview();// fixed for Samsung S2
+//                NowCamera.takePicture(shutterCallback, rawPictureCallback,
+//                        jpegPictureCallback);
+//                TakePicture = true;
+//            }
+//        }
+//    };
 
     ShutterCallback shutterCallback = new ShutterCallback() {
         public void onShutter() {
@@ -165,19 +191,23 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
         public void onPictureTaken(byte[] data, Camera camera) {
             mBitMap = BitmapFactory.decodeByteArray(data, 0,
                     data.length);
+            Log.d("huuh", "dddddddddddddddddddd");
             //允许储存照片
-//            FileOutputStream out = null;
-//            try {
-//                out = new FileOutputStream(NowPictureFileName);
-//            } catch (FileNotFoundException e) {
-//                e.printStackTrace();
-//            }
-//            bitmap2.compress(Bitmap.CompressFormat.JPEG, 90, out);
+            FileOutputStream out = null;
+            try {
+                out = new FileOutputStream(NowPictureFileName);
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+            mBitMap.compress(Bitmap.CompressFormat.JPEG, 90, out);
             mBitMapGray = toGrayScale(mBitMap);
 
             Message message = new Message();
             message.what = 1;
             mHandler.sendMessage(message);
+            mCamera.stopPreview();
+            mCamera.release();
+            isCameraOpen = false;
         }
     }
 
@@ -198,5 +228,34 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
         return bmpGrayScale;
     }
 
-
+    private Camera.Size getOptimalPreviewSize(List<Camera.Size> sizes, int w, int h) {
+        final double ASPECT_TOLERANCE = 0.05;
+        double targetRatio = (double) w / h;
+        if (sizes == null)
+            return null;
+        Camera.Size optimalSize = null;
+        double minDiff = Double.MAX_VALUE;
+        int targetHeight = h;
+        // Try to find an size match aspect ratio and size
+        for (Camera.Size size : sizes) {
+            double ratio = (double) size.width / size.height;
+            if (Math.abs(ratio - targetRatio) > ASPECT_TOLERANCE)
+                continue;
+            if (Math.abs(size.height - targetHeight) < minDiff) {
+                optimalSize = size;
+                minDiff = Math.abs(size.height - targetHeight);
+            }
+        }
+        // Cannot find the one match the aspect ratio, ignore the requirement
+        if (optimalSize == null) {
+            minDiff = Double.MAX_VALUE;
+            for (Camera.Size size : sizes) {
+                if (Math.abs(size.height - targetHeight) < minDiff) {
+                    optimalSize = size;
+                    minDiff = Math.abs(size.height - targetHeight);
+                }
+            }
+        }
+        return optimalSize;
+    }
 }
