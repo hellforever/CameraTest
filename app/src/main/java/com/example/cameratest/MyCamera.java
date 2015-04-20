@@ -80,14 +80,8 @@ public class MyCamera extends Activity {
 //                            ImageView v = new ImageView(MyCamera.this);
 //                            v.setImageBitmap(camPreview.mBitMapGray);
 //                            mainLayout.addView(v, new LayoutParams(width, height));
-                            List<Float> list = MyCamera.this.imageProcess(camPreview.mBitMapGray);
-                            MyCamera.this.setParameters(list);
-                            ArrayList<String> xMarks = new ArrayList<String>();
-                            for (int i = 0; i < list.size(); i++) {
-                                xMarks.add(String.valueOf(i));
-                            }
-                            MyCamera.this.setxVals(xMarks);
-                            MyCamera.this.drawPlot();
+
+                            drawImagePlot(camPreview.mBitMapGray);
 
                             camPreview = null;
                         }
@@ -293,11 +287,25 @@ public class MyCamera extends Activity {
         int y_moyen = y_sum / t;
         Log.d("Y_MOYEN", String.valueOf(y_moyen));
         List<Float> list = new ArrayList<Float>();
-        for (int i = 0; i < m; i++) {
+        int start = (int)(146f/400f*m);
+        int end = (int)(236f/400f*m);
+        for (int i = start; i < end; i++) {
             float temp = Color.blue(bitmap.getPixel(i, y_moyen));
             list.add(temp);
         }
         return list;
+    }
+
+    public void drawImagePlot(Bitmap bitmap){
+        List<Float> list = imageProcess(bitmap);
+        setParameters(list);
+        ArrayList<String> stringArray = new ArrayList<String>();
+        float step = 340f/list.size();
+        for(int i=0; i < list.size();i++){
+            stringArray.add(String.valueOf(720-i*step));
+        }
+        setxVals(stringArray);
+        drawPlot();
     }
 
     //检查相机
